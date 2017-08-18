@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration debug="true">
+    <include resource="default-log-path.xml" />
+    <include resource="default-log-setting.xml" />
+    
+    <!-- Loggers -->
+    <logger name="com.o2osys" additivity="false">
+       <level value="DEBUG"/>
+<!--        <appender-ref ref="ERROR_ROLLING" /> -->
+<!--        <appender-ref ref="ROLLING" /> -->
+       <appender-ref ref="CONSOLE" />
+    </logger>
+    
+     
+    <root level="INFO">
+       <appender-ref ref="CONSOLE" />
+    </root>
+</configuration>
