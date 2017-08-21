@@ -2,6 +2,7 @@ package com.o2osys.component;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.util.Random;
 import java.util.regex.Matcher;
@@ -19,8 +20,12 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.o2osys.entity.Location;
@@ -38,6 +43,8 @@ public class LocationKakaoComponent {
 	private final int TIMEOUT = 5;
 
 	private final Pattern OLD_ADDR = Pattern.compile("\\(구\\s[가-힣0-9]*\\)", Pattern.DOTALL);
+	
+	private final Pattern SIGUGUN =  Pattern.compile("(([가-힣]+(시|도)|bc|서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|경북|경남|제주)\\s[가-힣]+(시|군|구).*)");
 
 	private final ObjectMapper mObjectMapper = new ObjectMapper();
 
@@ -75,17 +82,23 @@ public class LocationKakaoComponent {
 
 	private Location getAddr2coord(String address) throws Exception {
 		LOGGER.debug("### address = "+address);
-		String url = mAddr2coordUrl + "?apikey=" + getApikey() + "&q=" + URLEncoder.encode(address, "UTF-8")
-				+ "&output=json";
+		
+		String key2 = "KakaoAK ff163f8e19f73c100ad96c5eec1c618b";
+		String url = "https://dapi.kakao.com/v2/local/search/address.json";
 
-		RequestConfig config = RequestConfig.custom().setConnectTimeout(TIMEOUT * 1000)
-				.setConnectionRequestTimeout(TIMEOUT * 1000).setSocketTimeout(TIMEOUT * 1000).build();
+		HttpHeaders headers = new HttpHeaders();
+		headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
+		headers.add("Authorization",key2);
 
-		HttpClient httpclient = HttpClientBuilder.create().setDefaultRequestConfig(config).build();
-		HttpGet httpGet = new HttpGet(url);
-		httpGet.setHeader("Content-type", "application/x-www-form-urlencoded");
-		HttpResponse response = httpclient.execute(httpGet);
-
+		//UriComponents
+		URI uri = UriComponentsBuilder.fromHttpUrl(url)
+				.queryParam("query", URLEncoder.encode(address, "UTF-8"))
+				.build()
+				.encode("UTF-8")
+				.toUri();
+		
+		RestTemplate restTemplate = new RestTemplate();
+		
 		switch (response.getStatusLine().getStatusCode()) {
 		case HttpStatus.SC_OK:
 			BufferedReader bufferedReader = new BufferedReader(
@@ -269,6 +282,18 @@ public class LocationKakaoComponent {
 		}
 
 		return matcher.replaceAll("");
+	}
+	
+	private static String getMatch(Pattern p, String target){
+	    
+		String result = target;
+		
+		Matcher m = p.matcher(target);
+	    System.out.println("### matcher = "+m);
+	
+	    if (m.find()) result=m.group();
+	      
+		return result;
 	}
 
 	/**

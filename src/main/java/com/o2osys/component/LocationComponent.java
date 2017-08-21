@@ -38,6 +38,8 @@ public class LocationComponent {
 	private final int TIMEOUT = 5;
 
 	private final Pattern OLD_ADDR = Pattern.compile("\\(구\\s[가-힣0-9]*\\)", Pattern.DOTALL);
+	
+	private final Pattern SIGUGUN =  Pattern.compile("(([가-힣]+(시|도)|bc|서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|경북|경남|제주)\\s[가-힣]+(시|군|구).*)");
 
 	private final ObjectMapper mObjectMapper = new ObjectMapper();
 
@@ -270,6 +272,19 @@ public class LocationComponent {
 
 		return matcher.replaceAll("");
 	}
+	
+	private static String getMatch(Pattern p, String target){
+	    
+		String result = target;
+		
+		Matcher m = p.matcher(target);
+	    System.out.println("### matcher = "+m);
+	
+	    if (m.find()) result=m.group();
+	      
+		return result;
+	}
+
 
 	/**
 	 * 다음 주소를 가져온다.

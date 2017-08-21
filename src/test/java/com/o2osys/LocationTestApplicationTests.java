@@ -1,6 +1,9 @@
 package com.o2osys;
 
+import java.net.URI;
 import java.net.URLEncoder;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -20,7 +23,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.o2osys.component.LocationComponent;
-import com.o2osys.entity.Location;
 import com.o2osys.entity.kakao.Response.ResAddress;
 
 @RunWith(SpringRunner.class)
@@ -33,6 +35,8 @@ public class LocationTestApplicationTests {
 	@Autowired
 	private LocationComponent lc;
 		
+	private final Pattern SIGUGUN =  Pattern.compile("(([가-힣]+(시|도)|bc|서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|경북|경남|제주)\\s[가-힣]+(시|군|구).*)");
+	
 	//Authorization
 	String token = "zpynTKRPs0kHyjE280KeAQkysXKvK-ZEP0kSXAopdaYAAAFdyrkdHA";
 	String key = "KakaoAK ede6a39a917ebdbb4d1a1fb6f6bd7eff";
@@ -49,9 +53,17 @@ public class LocationTestApplicationTests {
 		headers.setContentType(MediaType.APPLICATION_JSON_UTF8);
 		headers.add("Authorization",key2);
 		
-		UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
-				.queryParam("query", "난곡로31길");
+		String addr = getMatch(SIGUGUN, "난곡동 (구 신림3동+신림13동) 서울시 관악구 난곡로31길 32-4 현대빌라 101호");
+		log.debug("#### addr : "+ addr);
+		
+		//UriComponents
+		URI uri = UriComponentsBuilder.fromHttpUrl(url)
+				.queryParam("query", addr)
+				.build()
+				.encode("UTF-8")
+				.toUri();
 			
+		log.debug("### uri : "+uri.toString());
 		RestTemplate restTemplate = new RestTemplate();
 		
 		//ReqAddress params = new ReqAddress();
@@ -71,7 +83,7 @@ public class LocationTestApplicationTests {
 		
 		log.debug("URL = " + url);
 //		ResponseEntity<ResAddress> resMsg = 
-		ResponseEntity<ResAddress> resMsg = restTemplate.exchange(builder.build().encode("UTF-8").toUri(), HttpMethod.GET, entity, ResAddress.class);
+		ResponseEntity<ResAddress> resMsg = restTemplate.exchange(uri, HttpMethod.GET, entity, ResAddress.class);
 		
 		log.debug("### ALL = "+resMsg.getBody());
 		log.debug("### ALL = "+jsonStringFromObject(resMsg));
@@ -90,6 +102,19 @@ public class LocationTestApplicationTests {
 		*/
 	}
 	
+	//패턴 적용
+	private static String getMatch(Pattern p, String target){
+	    
+		String result = target;
+		
+		Matcher m = p.matcher(target);
+	    System.out.println("### matcher = "+m);
+	
+	    if (m.find()) result=m.group();
+	      
+		return result;
+	}
+
 	/**
      * Object -> JSON 형식으로 변환
      * 
