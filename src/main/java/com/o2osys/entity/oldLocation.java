@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-public class Location {
+public class oldLocation {
 	@JsonProperty("latitude")
 	private String latitude;
 

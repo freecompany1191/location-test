@@ -18,13 +18,15 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.o2osys.entity.Location;
+import com.o2osys.entity.oldLocation;
 import com.o2osys.Define.*;
+import com.o2osys.common.CommonUtils;
 import com.o2osys.entity.daum.ResAddr2coord;
 import com.o2osys.entity.daum.ResAddr2coord.Channel.Item;
 import com.o2osys.entity.daum.ResKeyword;
@@ -43,6 +45,9 @@ public class LocationComponent {
 
 	private final ObjectMapper mObjectMapper = new ObjectMapper();
 
+	@Autowired
+	CommonUtils util;
+	
 	@Value("${daum.api.addr2coord.url}")
 	String mAddr2coordUrl;
 
@@ -60,13 +65,13 @@ public class LocationComponent {
 	public void destroy() {
 	}
 
-	public Location getAddr(String address) throws Exception {
+	public oldLocation getAddr(String address) throws Exception {
 		
 		LOGGER.debug("@@@ Before address : "+ address);
 		address = replaceOldAddr(address);
 		LOGGER.debug("@@@ After address : "+ address);
 		
-		Location location = getAddr2coord(address);
+		oldLocation location = getAddr2coord(address);
 
 		if (location != null) {
 			return location;
@@ -75,7 +80,7 @@ public class LocationComponent {
 		return getKeyword(address);
 	}
 
-	private Location getAddr2coord(String address) throws Exception {
+	private oldLocation getAddr2coord(String address) throws Exception {
 		LOGGER.debug("### address = "+address);
 		String url = mAddr2coordUrl + "?apikey=" + getApikey() + "&q=" + URLEncoder.encode(address, "UTF-8")
 				+ "&output=json";
@@ -110,7 +115,7 @@ public class LocationComponent {
 					&& resAddr2coord.getChannel().getItems().size() > 0) {
 				Item item = resAddr2coord.getChannel().getItems().get(0);
 				if (item != null) {
-					Location location = new Location();
+					oldLocation location = new oldLocation();
 					location.setLatitude(String.valueOf(item.getLat()));
 					location.setLongitude(String.valueOf(item.getLng()));
 					location.setXyAccType(XyAccType.TYPE_1);
@@ -169,11 +174,11 @@ public class LocationComponent {
 		}
 	}
 
-	private Location getKeyword(String address) throws Exception {
+	private oldLocation getKeyword(String address) throws Exception {
 		return getKeyword(0, address);
 	}
 
-	private Location getKeyword(int num, String address) throws Exception {
+	private oldLocation getKeyword(int num, String address) throws Exception {
 		LOGGER.debug("#### getKeyword["+num+"] address = "+address);
 		if (StringUtils.isEmpty(address)) {
 			return null;
@@ -216,7 +221,7 @@ public class LocationComponent {
 
 				ResKeyword.Channel.Item item = resKeyword.getChannel().getItems().get(0);
 				if (item != null) {
-					Location location = new Location();
+					oldLocation location = new oldLocation();
 					location.setLatitude(item.getLatitude());
 					location.setLongitude(item.getLongitude());
 					if (num == 0) {

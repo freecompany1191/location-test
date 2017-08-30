@@ -24,7 +24,7 @@ import lombok.Data;
 @Data
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ResAddress {
-
+	
 	@JsonProperty("meta")
 	private Meta meta;
 
@@ -32,7 +32,6 @@ public class ResAddress {
 	private ArrayList<Documents> documents;
 
 	@Data
-	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public static class Meta {
 		/** 검색어에 검색된 문서수 */
 		@JsonProperty("total_count")
@@ -79,4 +78,5 @@ public class ResAddress {
 		private RoadAddress roadAddress;
 		
 	}
+
 }

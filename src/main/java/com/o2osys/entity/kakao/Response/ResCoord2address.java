@@ -33,7 +33,6 @@ public class ResCoord2address {
 	private ArrayList<Documents> documents;
 
 	@Data
-	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public static class Meta {
 		/** 변환된 구(지번)주소/신주소 의 개수 
 		 *  0 or 1

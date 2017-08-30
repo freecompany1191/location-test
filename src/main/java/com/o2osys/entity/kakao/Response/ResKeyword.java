@@ -32,7 +32,6 @@ public class ResKeyword {
 	private ArrayList<Documents> documents;
 
 	@Data
-	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public static class Meta {
 		/** 매칭된 문서수 */
 		@JsonProperty("total_count")
