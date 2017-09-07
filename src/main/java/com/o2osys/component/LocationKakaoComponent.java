@@ -316,6 +316,10 @@ public class LocationKakaoComponent {
 			if(doc.getRoadAddress() == null)
 				loc.setXyAccType(XyAccType.TYPE_3);
 			
+			//검색 주소가 시도 시군구 읍면동리가길로 까지만 있으면 정확도 낮음
+			if(getMatchXyAccType(ADDRESS_PATTERN.DEFAULT.SIDODONG_ONLY.getPettern() , address))
+				loc.setXyAccType(XyAccType.TYPE_3);
+			
 		}
 		
 		return loc;
@@ -647,6 +651,24 @@ public class LocationKakaoComponent {
 	    
 		return result;
 	}
+	
+	/**
+	 * 정규식 패턴 매칭(매칭되는 패턴에 의해 정확도 확인)
+	 * @Method Name : getMatchXyAccType
+	 * @param p
+	 * @param target
+	 * @return
+	 */
+	private boolean getMatchXyAccType(Pattern p, String target){
+	    boolean result = false;
+		Matcher m = p.matcher(target);
+	      
+		result = m.matches();
+		
+		
+		log.debug("## getMatchXyAccType target : "+target+" | result : "+result);
+		return result;
+	}
 
 	/**
 	 * 뒤에서부터 공백을 기준으로 한블럭씩 잘라냄
@@ -656,9 +678,14 @@ public class LocationKakaoComponent {
 	 */
 	private String nextAddr(String address) {
 		log.debug("# Address address.length() : "+address.length());
-		if (address.length() < 3) {
+		
+		//검색할 주소가 3보다 작으면 null
+		if (address.length() < 3) 
 			return null;
-		}
+		
+		//검색할 주소가 시도 시군구 읍면동리가길로 까지만 있으면 null
+		if(getMatchXyAccType(ADDRESS_PATTERN.DEFAULT.SIDODONG_ONLY.getPettern() , address)) 
+			return null;
 
 		String[] temp = address.split(" ");
 		
@@ -692,9 +719,12 @@ public class LocationKakaoComponent {
 	private String nextAddr(String address, int length) {
 		log.debug("# Keyword address.length() : "+address.length());
 		
-		if (address.length() < length) {
+		if (address.length() < length)
 			return null;
-		}
+		
+		//검색할 주소가 시도 시군구 읍면동리가길로 까지만 있으면 null
+		if(getMatchXyAccType(ADDRESS_PATTERN.DEFAULT.SIDODONG_ONLY.getPettern() , address)) 
+			return null;
 
 		String[] temp = address.split(" ");
 		

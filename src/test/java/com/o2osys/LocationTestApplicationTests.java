@@ -30,7 +30,7 @@ public class LocationTestApplicationTests {
 		
 		// 카카오 api를 통한 좌표 조회
 		
-		Location location = lc.getAddr("서울 강서구 등촌2동 목동605-11 영계동 영동아파트");
+		Location location = lc.getAddr("서울특별시 노원구 월계1동 389-1 삼능스페이스향 804호");
 		
 		log.debug("#### location : "+ util.jsonStringFromObject(location));
 		
