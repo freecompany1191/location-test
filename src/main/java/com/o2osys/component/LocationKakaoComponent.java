@@ -93,7 +93,8 @@ public class LocationKakaoComponent {
         log.info("@@ 주소 기본패턴 적용 후 After Address : "+ address);
         //주소 향상기능 모듈적용
         Location location = addrAccInc(address);
-        location.setEaAddr7(oldAddress);
+
+        if(location != null) location.setEaAddr7(oldAddress);
 
         return location;
     }
@@ -203,8 +204,9 @@ public class LocationKakaoComponent {
      */
     private Location addrApiRoop(String searchType, String address) throws Exception{
 
-        Location loc = new Location();
+        Location loc = null;
         Location old_loc = null;
+        String old_address = address;
 
         int num = 0;
 
@@ -235,6 +237,13 @@ public class LocationKakaoComponent {
 
             }
 
+            //검색할 주소가 시도 시군구 읍면동리가길로 까지만 있으면 BREAK
+            if(getMatchXyAccType(ADDRESS_PATTERN.CUSTOM.SIDODONG_ONLY.getPettern() , address)){
+                log.info("@@ KAKAO API ["+searchType+"] 시도 시군구 읍면동리가길로 BREAK ["+num+"] = "+address);
+                break;
+            }
+
+
             //공백기준으로 뒷쪽 한블럭 제거 후 주소가 null 일때까지 다시 반복
             if(searchType.equals("address")){
                 address = nextAddr(address);
@@ -248,7 +257,6 @@ public class LocationKakaoComponent {
             log.info("@@ KAKAO API ["+searchType+"] 검색 결과 없음 재시도["+num+"] = "+address);
 
         }while(address != null);
-
 
         log.info("@@ KAKAO API ["+searchType+"] 최종 검색 결과 없음 초기 저장 주소 리턴 = "+old_loc);
         //주소가 없을때까지 반복했는데도 정확도가 높지 않을때는 최근에 조회되었던 주소를 리턴
@@ -542,25 +550,29 @@ public class LocationKakaoComponent {
         target = getMatch(ADDRESS_PATTERN.DEFAULT.SIGUGUN.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP3 적용 : "+ target);
 
-        //STEP4 - 아파트와 동또는 번지 분리 패턴 적용
-        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.APT_BLANK.getPettern(), target);
+        //STEP4 - 중복 시도 시군구 읍면동가리로길 제거
+        target = getMatchdupleOut(ADDRESS_PATTERN.DEFAULT.DUPLE_SIGUGUN.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP4 적용 : "+ target);
 
-        //STEP5 - 동번지일 경우 띄어쓰기 해주는 패턴 적용
-        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.DONG_BUNGI.getPettern(), target);
+        //STEP5 - 아파트와 동또는 번지 분리 패턴 적용
+        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.APT_BLANK.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP5 적용 : "+ target);
 
-        //STEP6 - 번지에 문자가 붙어있을 경우 띄어쓰기 해주는 패턴 적용
-        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.BUNGI_BLANK.getPettern(), target);
+        //STEP6 - 동번지일 경우 띄어쓰기 해주는 패턴 적용
+        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.DONG_BUNGI.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP6 적용 : "+ target);
 
-        //STEP7 - 중복동 제거
-        target = getMatchdupleDongOut(ADDRESS_PATTERN.DEFAULT.DUPLE_DONG.getPettern(), target);
+        //STEP7 - 번지에 문자가 붙어있을 경우 띄어쓰기 해주는 패턴 적용
+        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.BUNGI_BLANK.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP7 적용 : "+ target);
 
-        //STEP8 - 블랭크 제거
-        target = getMatchOutBlank(ADDRESS_PATTERN.DEFAULT.BLANK_OUT.getPettern(), target);
+        //STEP8 - 중복동 제거
+        target = getMatchdupleOut(ADDRESS_PATTERN.DEFAULT.DUPLE_DONG.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP8 적용 : "+ target);
+
+        //STEP9 - 블랭크 제거
+        target = getMatchOutBlank(ADDRESS_PATTERN.DEFAULT.BLANK_OUT.getPettern(), target);
+        log.info("@@ 주소 기본패턴 STEP9 적용 : "+ target);
 
         return target;
     }
@@ -652,21 +664,33 @@ public class LocationKakaoComponent {
     }
 
     /**
-     * 정규식 패턴 매칭(루프돌며 중복동 제거)
-     * @Method Name : getMatchdupleDongOut
+     * 정규식 패턴 매칭(루프돌며 중복 제거)
+     * @Method Name : getMatchdupleOut
      * @param p
      * @param target
      * @return
      */
-    private String getMatchdupleDongOut(Pattern p, String target){
+    private String getMatchdupleOut(Pattern p, String target){
 
         Matcher m = p.matcher(target);
 
         int cnt = 0;
+        String tmpStr = "";
+
         while (m.find()) {
-            if(cnt != 0) target = m.replaceAll("");
+            if(cnt == 0){
+                tmpStr = m.group();
+                target = m.replaceFirst("TEMP_STR");
+            }
+            else{
+                if(tmpStr.length() < m.group().length()) tmpStr = m.group();
+                target = target.replace(m.group(), "");
+            }
             cnt++;
         }
+
+        if(!StringUtils.isEmpty(tmpStr))
+            target = target.replaceAll("TEMP_STR", tmpStr);
 
         return target;
     }
@@ -701,10 +725,6 @@ public class LocationKakaoComponent {
         if (address.length() < 3)
             return null;
 
-        //검색할 주소가 시도 시군구 읍면동리가길로 까지만 있으면 null
-        if(getMatchXyAccType(ADDRESS_PATTERN.CUSTOM.SIDODONG_ONLY.getPettern() , address))
-            return null;
-
         String[] temp = address.split(" ");
 
         /*
@@ -715,7 +735,7 @@ public class LocationKakaoComponent {
 		log.debug("# temp splite length() : "+temp.length);
          */
 
-        if (temp == null || temp.length <= 1) {
+        if (temp == null || temp.length <= 2) {
             return null;
         }
 
@@ -740,10 +760,6 @@ public class LocationKakaoComponent {
         if (address.length() < length)
             return null;
 
-        //검색할 주소가 시도 시군구 읍면동리가길로 까지만 있으면 null
-        if(getMatchXyAccType(ADDRESS_PATTERN.CUSTOM.SIDODONG_ONLY.getPettern() , address))
-            return null;
-
         String[] temp = address.split(" ");
 
         /*
@@ -760,6 +776,77 @@ public class LocationKakaoComponent {
 
         StringBuilder stringBuilder = new StringBuilder();
         for (int i = 0; i < temp.length - 1; i++) {
+            stringBuilder.append(temp[i]);
+            stringBuilder.append(" ");
+        }
+
+        return stringBuilder.toString().trim();
+    }
+
+    /**
+     * 앞에서부터 공백을 기준으로 한블럭씩 잘라냄
+     * @Method Name : beforeAddr
+     * @param address
+     * @return
+     */
+    private String beforeAddr(String address) {
+        log.debug("# Address address.length() : "+address.length());
+
+        //검색할 주소가 3보다 작으면 null
+        if (address.length() < 3)
+            return null;
+
+        String[] temp = address.split(" ");
+
+        /*
+        for (int i = 0; i < temp.length ; i++) {
+            log.debug("# temp["+i+"] = "+temp[i]);
+        }
+
+        log.debug("# temp splite length() : "+temp.length);
+         */
+
+        if (temp == null || temp.length <= 2) {
+            return null;
+        }
+
+        StringBuilder stringBuilder = new StringBuilder();
+        for (int i = 1; i < temp.length; i++) {
+            stringBuilder.append(temp[i]);
+            stringBuilder.append(" ");
+        }
+
+        return stringBuilder.toString().trim();
+    }
+
+    /**
+     * 앞에서부터 공백을 기준으로 한블럭씩 잘라냄 길이 설정가능
+     * @Method Name : beforeAddr
+     * @param address
+     * @return
+     */
+    private String beforeAddr(String address, int length) {
+        log.debug("# Keyword address.length() : "+address.length());
+
+        if (address.length() < length)
+            return null;
+
+        String[] temp = address.split(" ");
+
+        /*
+        for (int i = 0; i < temp.length ; i++) {
+            log.debug("# temp["+i+"] = "+temp[i]);
+        }
+
+        log.debug("# temp splite length() : "+temp.length);
+         */
+
+        if (temp == null || temp.length <= 2) {
+            return null;
+        }
+
+        StringBuilder stringBuilder = new StringBuilder();
+        for (int i = 1; i < temp.length; i++) {
             stringBuilder.append(temp[i]);
             stringBuilder.append(" ");
         }
