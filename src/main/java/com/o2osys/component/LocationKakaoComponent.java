@@ -36,7 +36,7 @@ import com.o2osys.entity.kakao.Response.ResKeyword;
 
 /**
    @FileName  : LocationKakaoComponent.java
-   @Description :
+   @Description : 카카오API 주소 검색 모듈
    @author      : KMS
    @since       : 2017. 8. 22.
    @version     : 1.0
@@ -47,6 +47,7 @@ import com.o2osys.entity.kakao.Response.ResKeyword;
    -----------      ---------      -------------------------------
    2017. 8. 22.     KMS            최초생성
    2017. 9. 12.     KMS            패턴 추가 및 로직 보완
+   2017. 9. 14.     KMS            패턴 추가 및 로직 보완(동갯수에 따른 루프문 처리)
 
  */
 @Component
@@ -69,6 +70,9 @@ public class LocationKakaoComponent {
 
     @Value("${kakao.api.url.coord2address}")
     String COORD2ADDRESS_URL;
+
+    //동이 여러개일 경우 정확도를 높이기 위해 배열에 담아 재시
+    String[] dongArr;
 
     @PostConstruct
     public void init() {
@@ -94,7 +98,26 @@ public class LocationKakaoComponent {
         //주소 향상기능 모듈적용
         Location location = addrAccInc(address);
 
-        if(location != null) location.setEaAddr7(oldAddress);
+        //조회된 주소가 있을때만
+        if(location != null){
+
+            //동 배열에 값이 있고 정확도가 높지 않을때 동 배열에 담긴 동들로 루프를 돌리며 주소검색 재시도
+            if(dongArr != null && !location.getXyAccType().equals(XyAccType.TYPE_1)){
+
+                for(String netxDong : dongArr){
+                    //현재주소의 동을 배열의 다음 동으로 변환
+                    address = getMatchDongRoop(address, netxDong);
+                    System.out.println("netxDong : "+netxDong+" | address : "+address);
+                    //다음 동으로 변환된 주소로 다시 주소를 검색한다
+                    location = addrAccInc(address);
+                }
+
+            }
+
+            //배달 대행 업체에서 들어온 주소를 셋팅한다
+            location.setEaAddr7(oldAddress);
+
+        }
 
         return location;
     }
@@ -558,21 +581,25 @@ public class LocationKakaoComponent {
         target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.APT_BLANK.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP5 적용 : "+ target);
 
-        //STEP6 - 동번지일 경우 띄어쓰기 해주는 패턴 적용
-        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.DONG_BUNGI.getPettern(), target);
+        //STEP6 - 아파트동과 호 분리
+        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.APT_DONG_BLANK.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP6 적용 : "+ target);
 
-        //STEP7 - 번지에 문자가 붙어있을 경우 띄어쓰기 해주는 패턴 적용
-        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.BUNGI_BLANK.getPettern(), target);
+        //STEP7 - 동번지일 경우 띄어쓰기 해주는 패턴 적용
+        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.DONG_BUNGI.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP7 적용 : "+ target);
 
         //STEP8 - 중복동 제거
-        target = getMatchdupleOut(ADDRESS_PATTERN.DEFAULT.DUPLE_DONG.getPettern(), target);
+        target = getMatchdupleDongOut(ADDRESS_PATTERN.DEFAULT.DUPLE_DONG.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP8 적용 : "+ target);
 
-        //STEP9 - 블랭크 제거
-        target = getMatchOutBlank(ADDRESS_PATTERN.DEFAULT.BLANK_OUT.getPettern(), target);
+        //STEP9 - 번지에 문자가 붙어있을 경우 띄어쓰기 해주는 패턴 적용
+        target = getMatchAddBlank(ADDRESS_PATTERN.DEFAULT.BUNGI_BLANK.getPettern(), target);
         log.info("@@ 주소 기본패턴 STEP9 적용 : "+ target);
+
+        //STEP10 - 블랭크 제거
+        target = getMatchOutBlank(ADDRESS_PATTERN.DEFAULT.BLANK_OUT.getPettern(), target);
+        log.info("@@ 주소 기본패턴 STEP10 적용 : "+ target);
 
         return target;
     }
@@ -646,7 +673,7 @@ public class LocationKakaoComponent {
     }
 
     /**
-     * 정규식 패턴 매칭(루프돌며 매칭된 패턴 제거)
+     * 정규식 패턴 매칭(루프돌며 매칭된 패턴 모두 제거)
      * @Method Name : getMatchRoopOut
      * @param p
      * @param target
@@ -664,7 +691,67 @@ public class LocationKakaoComponent {
     }
 
     /**
-     * 정규식 패턴 매칭(루프돌며 중복 제거)
+     * 정규식 패턴 매칭(루프돌며 중복동 제거)
+     * @Method Name : getMatchdupleOut
+     * @param p
+     * @param target
+     * @return
+     */
+    private String getMatchdupleDongOut(Pattern p, String target){
+
+        Matcher m = p.matcher(target);
+
+        int cnt = 0;
+        String tmpStr = "";
+        String dongArrStr = "";
+
+        while (m.find()) {
+            if(cnt == 0){
+                //첫번째 동을 tmpStr에 담는다
+                tmpStr = m.group();
+                target = m.replaceFirst("TEMP_STR");
+                dongArrStr=tmpStr;
+            }
+            else{
+                //첫번째 동과 같으면 제거
+                if(m.group().equals(tmpStr))
+                    target = target.replace(m.group(), "");
+                else{//다르면 | 구분자로 문자열 담는다
+                    dongArrStr=String.join("@",dongArrStr,m.group());
+                    target = target.replaceAll(m.group(), "");
+                }
+            }
+            cnt++;
+        }
+
+        if(!dongArrStr.equals(tmpStr))
+            dongArr = dongArrStr.split("@");
+
+        //tmpStr이 있으면 TEMP_STR로 변환시킨 첫번째 동을 다시 원복시킨다
+        target = target.replaceAll("TEMP_STR", tmpStr);
+
+        return target;
+    }
+
+    /**
+     * 정규식 패턴 매칭(루프돌며 배열에 저장된 동으로 주소를 변환)
+     * @Method Name : getMatchDongRoop
+     * @param p
+     * @param target
+     * @param netxDong
+     * @return
+     */
+    private String getMatchDongRoop(String target, String netxDong){
+
+        Matcher m = ADDRESS_PATTERN.DEFAULT.DUPLE_DONG.getPettern().matcher(target);
+
+        if (m.find()) target = target.replaceAll(m.group(), netxDong);
+
+        return target;
+    }
+
+    /**
+     * 정규식 패턴 매칭(루프돌며 중복 패턴 제거)
      * @Method Name : getMatchdupleOut
      * @param p
      * @param target
@@ -683,7 +770,11 @@ public class LocationKakaoComponent {
                 target = m.replaceFirst("TEMP_STR");
             }
             else{
-                if(tmpStr.length() < m.group().length()) tmpStr = m.group();
+                if(tmpStr.length() < m.group().length()) { //첫번째 조건값 보다 길이가 길면
+                    log.debug("length Diff : "+(m.group().length() - tmpStr.length()));
+                    if(m.group().length() - tmpStr.length() > 1) //길이 차이가 1보다 크면
+                        tmpStr = m.group();
+                }
                 target = target.replace(m.group(), "");
             }
             cnt++;
