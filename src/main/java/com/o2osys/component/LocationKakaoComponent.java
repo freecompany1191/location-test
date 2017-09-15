@@ -59,19 +59,23 @@ public class LocationKakaoComponent {
     @Autowired
     CommonUtils util;
 
+    //카카오 REST API KEY
     @Value("${kakao.restapi.key}")
     String KAKAO_API_KEY;
 
+    //카카오 주소 검색 API
     @Value("${kakao.api.url.address}")
     String ADDRESS_URL;
 
+    //카카오 키워드로 장소 검색 API
     @Value("${kakao.api.url.keyword}")
     String KEYWORD_URL;
 
+    //카카오 좌표 -> 주소 변환 API
     @Value("${kakao.api.url.coord2address}")
     String COORD2ADDRESS_URL;
 
-    //동이 여러개일 경우 정확도를 높이기 위해 배열에 담아 재시
+    //동이 여러개일 경우 정확도를 높이기 위해 배열에 담아 재시도
     String[] dongArr;
 
     @PostConstruct
@@ -114,8 +118,10 @@ public class LocationKakaoComponent {
 
             }
 
-            //배달 대행 업체에서 들어온 주소를 셋팅한다
-            location.setEaAddr7(oldAddress);
+            if(location != null){
+                //배달 대행 업체에서 들어온 주소를 셋팅한다
+                location.setEaAddr7(oldAddress);
+            }
 
         }
 
